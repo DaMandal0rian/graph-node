@@ -243,7 +243,34 @@ where
     }
 
     pub async fn run(self) -> Result<(), SubgraphRunnerError> {
-        self.run_inner(false).await.map(|_| ())
+        async fn restart_sync() {
+            // Placeholder for actual restart logic triggered by the watchdog.
+        }
+
+        let store = self.inputs.store.cheap_clone();
+        let logger = self.logger.clone();
+
+        tokio::select! {
+            res = self.run_inner(false) => res.map(|_| ()),
+            _ = async move {
+                let mut last_ptr = store.block_ptr();
+                let mut last_progress = Instant::now();
+
+                loop {
+                    tokio::time::sleep(Duration::from_secs(10)).await;
+                    let ptr = store.block_ptr();
+
+                    if ptr != last_ptr {
+                        last_ptr = ptr;
+                        last_progress = Instant::now();
+                    } else if last_progress.elapsed() > Duration::from_secs(60) {
+                        warn!(logger, "Watchdog detected no progress for over 60s; restarting");
+                        restart_sync().await;
+                        break;
+                    }
+                }
+            } => Ok(()),
+        }
     }
 
     async fn run_inner(mut self, break_on_restart: bool) -> Result<Self, SubgraphRunnerError> {
