@@ -18,12 +18,12 @@ path = "src/bin/dev.rs"
 
 [dependencies]
 anyhow = { workspace = true }
-env_logger = "0.11.3"
+env_logger = "0.11.8"
 clap.workspace = true
 git-testament = "0.2"
 itertools = { workspace = true }
 lazy_static = "1.5.0"
-url = "2.5.4"
+url = "2.5.7"
 graph = { path = "../graph" }
 graph-core = { path = "../core" }
 graph-chain-ethereum = { path = "../chain/ethereum" }
@@ -38,13 +38,13 @@ graph-store-postgres = { path = "../store/postgres" }
 graphman-server = { workspace = true }
 graphman = { workspace = true }
 serde = { workspace = true }
-shellexpand = "3.1.0"
+shellexpand = "3.1.1"
 termcolor = "1.4.1"
 diesel = { workspace = true }
-prometheus = { version = "0.13.4", features = ["push"] }
+prometheus = { version = "0.14.0", features = ["push"] }
 json-structural-diff = { version = "0.2", features = ["colorize"] }
 globset = "0.4.16"
-notify = "8.0.0"
+notify = "8.2.0"
 
 [target.'cfg(unix)'.dependencies]
 pgtemp = { git = "https://github.com/graphprotocol/pgtemp", branch = "initdb-args" }
