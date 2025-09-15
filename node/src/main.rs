@@ -13,18 +13,19 @@ fn main() {
     let max_blocking: usize = std::env::var("GRAPH_MAX_BLOCKING_THREADS")
         .ok()
         .and_then(|v| v.parse().ok())
-        .unwrap_or(512);
+        .unwrap_or(1024);
 
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .max_blocking_threads(max_blocking)
         .build()
         .unwrap()
-        .block_on(async { main_inner().await })
+        .block_on(async { main_inner(max_blocking).await })
 }
 
-async fn main_inner() {
+async fn main_inner(max_blocking: usize) {
     env_logger::init();
+    info!("Runtime configured with {max_blocking} max blocking threads");
     let env_vars = Arc::new(EnvVars::from_env().unwrap());
     let opt = opt::Opt::parse();
 
