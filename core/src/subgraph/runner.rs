@@ -242,6 +242,12 @@ where
         }
     }
 
+    async fn restart_sync(&mut self) {
+        let guard = CancelGuard::new();
+        self.cancel_handle = Some(guard.handle());
+        self.ctx.instances.insert(self.inputs.deployment.id, guard);
+    }
+
     pub async fn run(self) -> Result<(), SubgraphRunnerError> {
         self.run_inner(false).await.map(|_| ())
     }
@@ -297,12 +303,28 @@ where
 
             self.metrics.subgraph.deployment_status.running();
 
+            let mut heartbeat = tokio::time::sleep(Duration::from_secs(60));
+            tokio::pin!(heartbeat);
+
             // Process events from the stream as long as no restart is needed
             loop {
-                let event = {
+                let event;
+
+                {
                     let _section = self.metrics.stream.stopwatch.start_section("scan_blocks");
 
-                    block_stream.next().await
+                    tokio::select! {
+                        e = block_stream.next() => {
+                            heartbeat.as_mut().reset(tokio::time::Instant::now() + Duration::from_secs(60));
+                            event = e;
+                        }
+                        _ = &mut heartbeat => {
+                            warn!(self.logger, "Block stream stalled for 60s, restarting sync");
+                            self.restart_sync().await;
+                            heartbeat.as_mut().reset(tokio::time::Instant::now() + Duration::from_secs(60));
+                            continue;
+                        }
+                    }
                 };
 
                 // TODO: move cancel handle to the Context
