@@ -27,6 +27,7 @@ use graph::prelude::{
 use graph::tokio_retry::Retry;
 use graph::util::futures::retry_strategy;
 use graph::util::futures::RETRY_DEFAULT_LIMIT;
+use crate::polling_monitor::SUBGRAPH_SYNC_TASK_QUEUE_DEPTH;
 
 pub struct SubgraphRegistrar<P, S, SM> {
     logger: Logger,
@@ -237,8 +238,12 @@ where
                     let sender = sender.clone();
                     let logger = logger.clone();
 
+                    SUBGRAPH_SYNC_TASK_QUEUE_DEPTH.inc();
                     graph::spawn(
-                        start_subgraph(id, provider.clone(), logger).map(move |()| drop(sender)),
+                        start_subgraph(id, provider.clone(), logger).map(move |()| {
+                            SUBGRAPH_SYNC_TASK_QUEUE_DEPTH.dec();
+                            drop(sender)
+                        }),
                     );
                 }
                 drop(sender);
@@ -452,7 +457,9 @@ async fn handle_assignment_event(
             deployment,
             node_id: _,
         } => {
+            SUBGRAPH_SYNC_TASK_QUEUE_DEPTH.inc();
             start_subgraph(deployment, provider.clone(), logger).await;
+            SUBGRAPH_SYNC_TASK_QUEUE_DEPTH.dec();
             Ok(())
         }
         AssignmentEvent::Remove {

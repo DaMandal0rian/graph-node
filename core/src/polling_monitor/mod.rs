@@ -16,7 +16,7 @@ use graph::futures03::stream::StreamExt;
 use graph::futures03::{stream, Future, FutureExt, TryFutureExt};
 use graph::parking_lot::Mutex;
 use graph::prelude::tokio;
-use graph::prometheus::{Counter, Gauge};
+use graph::prometheus::{register, Counter, Gauge};
 use graph::slog::{debug, Logger};
 use graph::util::monitored::MonitoredVecDeque as VecDeque;
 use tokio::sync::{mpsc, watch};
@@ -29,6 +29,22 @@ pub use arweave_service::{arweave_service, ArweaveService};
 pub use ipfs_service::{ipfs_service, IpfsService};
 
 const MIN_BACKOFF: Duration = Duration::from_secs(5);
+
+use graph::prelude::lazy_static;
+
+lazy_static! {
+    /// Tracks the number of pending subgraph sync tasks.
+    pub static ref SUBGRAPH_SYNC_TASK_QUEUE_DEPTH: Gauge = {
+        let gauge = Gauge::new(
+            "subgraph_sync_task_queue_depth",
+            "Number of subgraph sync tasks waiting to be processed",
+        )
+        .expect("failed to create subgraph_sync_task_queue_depth gauge");
+        register(Box::new(gauge.clone()))
+            .expect("failed to register subgraph_sync_task_queue_depth gauge");
+        gauge
+    };
+}
 
 struct Backoffs<ID> {
     backoff_maker: ExponentialBackoffMaker,
@@ -77,17 +93,23 @@ impl<T> Queue<T> {
     }
 
     fn push_back(&self, e: T) {
+        SUBGRAPH_SYNC_TASK_QUEUE_DEPTH.inc();
         self.queue.lock().push_back(e);
         let _ = self.waker.send(());
     }
 
     fn push_front(&self, e: T) {
+        SUBGRAPH_SYNC_TASK_QUEUE_DEPTH.inc();
         self.queue.lock().push_front(e);
         let _ = self.waker.send(());
     }
 
     fn pop_front(&self) -> Option<T> {
-        self.queue.lock().pop_front()
+        let item = self.queue.lock().pop_front();
+        if item.is_some() {
+            SUBGRAPH_SYNC_TASK_QUEUE_DEPTH.dec();
+        }
+        item
     }
 }
 

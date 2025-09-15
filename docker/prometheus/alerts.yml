@@ -1,0 +1,13 @@
+groups:
+  - name: SubgraphSyncTasks
+    rules:
+      - alert: SubgraphSyncTaskQueueEmpty
+        expr: subgraph_sync_task_queue_depth == 0 and sum(deployment_synced == 0) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Subgraph sync task queue is empty while deployments remain unsynced"
+          description: |
+            The subgraph sync task queue has no pending tasks, but there are
+            deployments that have not yet completed syncing.
