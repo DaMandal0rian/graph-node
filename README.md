@@ -14,6 +14,38 @@ This guide is for:
 1. Subgraph developers who want to run `graph-node` locally to test their Subgraphs during development
 2. Contributors who want to add features or fix bugs to `graph-node` itself
 
+## Architecture
+
+`graph-node` is organized as a Cargo workspace of many small crates:
+
+- `node/` – command-line entrypoint that wires together all services.
+- `graph/` – foundational types, traits, and utilities shared across crates.
+- `core/` – subgraph management and runtime orchestration.
+- `chain/` – adapters for each supported blockchain (Ethereum, Near, etc.).
+- `runtime/wasm/` – executes subgraph mapping functions inside a WASM host.
+- `store/postgres/` – persistence layer backed by PostgreSQL.
+- `graphql/` – query execution engine powering the GraphQL API.
+- `server/` – HTTP, WebSocket, JSON-RPC, metrics, and other service endpoints.
+- `substreams/` – integration with The Graph’s Substreams.
+- `tests/` and `docs/` – integration tests and further documentation.
+
+Key concepts to explore:
+
+1. **Subgraphs** describe which blockchain data to index.
+2. **Data flow**: chain adapter → WASM mappings → Postgres store → GraphQL API.
+3. **Traits** in the `graph` crate abstract components for extensibility.
+4. **Async execution** uses `tokio` with some `futures01` compatibility.
+5. **Configuration** relies on CLI flags and environment variables (see `docs/`).
+
+### Next steps
+
+New contributors can:
+
+- Read `docs/getting-started.md` for setup instructions.
+- Browse `docs/environment-variables.md` and `docs/config.md` for runtime configuration.
+- Study `chain/ethereum` or `store/postgres` for concrete examples.
+- Run integration tests under `tests/` to see the full pipeline in action.
+
 ## Running `graph-node` from Docker images
 
 For subgraph developers, it is highly recommended to use prebuilt Docker
